@@ -1,0 +1,501 @@
+
+<!-- Resources -->
+<script src="AM_Chart_JS/amcharts.js"></script>
+<script src="AM_Chart_JS/pie.js"></script>
+<script src="AM_Chart_JS/serial.js"></script>
+<script src="AM_Chart_JS/export.min.js"></script>
+<script src="AM_Chart_JS/light.js"></script>
+<link rel="stylesheet" href="AM_Chart_JS/export.css" type="text/css" media="all" />
+
+<script>
+function getFile($id,$employee_id,$mgrid, $week){
+	//alert($id);
+	var tmsid=$id;
+	var str=$id+';'+$employee_id+';'+$mgrid+';'+$week;
+	$('#txt_id').val(str);
+	document.forms["frm1"].action="home.php?page=timetable";
+	document.forms["frm1"].submit();
+}
+</script>
+
+<!-- Chart code  for Working Hours Details -->
+<script>
+var chart = AmCharts.makeChart( "chartdiv", {
+  "type": "pie",
+  "theme": "light",
+  "dataProvider":<?php getdata(); ?>,
+  "valueField": "value",
+  "titleField": "Title",
+  "outlineAlpha": 0.4, 
+  "depth3D": 15,
+  "balloonText": "[[Title]]<br><span style='font-size:14px'><b>[[value]]</b> ([[percents]]%)</span>",
+  "angle": 30,
+  "export": {
+	"enabled": true
+  }
+});
+</script>
+
+<!-- Chart code  for approved hours vs unapproved hours Details -->
+<script>
+var chart = AmCharts.makeChart( "chartdiv_Unapproved", {
+  "type": "pie",
+  "theme": "light",
+  "dataProvider":<?php rep_hrUnapphr_vs_submitted(); ?>,
+  "valueField": "value",
+  "titleField": "Title",
+  "outlineAlpha": 0.4, 
+  "depth3D": 15,
+  "balloonText": "[[Title]]<br><span style='font-size:14px'><b>[[value]]</b> ([[percents]]%)</span>",
+  "angle": 30,
+  "export": {
+    "enabled": true
+  }
+} );
+</script>
+
+<!-- Chart code for Hours actual vs Budgeted in Project -->
+<!-- Chart code -->
+<script>
+var chart = AmCharts.makeChart("chartdiv1", {
+    "theme": "light",
+    "type": "serial",
+    "dataProvider":<?php rep_ProjHr_vs_actualHr(); ?>  ,
+    "valueAxes": [{
+        //"unit": "%",
+        "position": "left",
+        "title": "Hours",
+    }],
+    "startDuration": 1,
+    "graphs": [{
+        "balloonText": "Actual Hours for project :- [[category]] : <b>[[value]]</b>",
+        "fillAlphas": 0.9,
+        "lineAlpha": 0.2,
+        "title": "Actual Hours",
+        "type": "column",
+        "valueField": "Actual Hours"
+    }, {
+        "balloonText": "Total Hours  for project :-[[category]]: <b>[[value]]</b>",
+        "fillAlphas": 0.9,
+        "lineAlpha": 0.2,
+        "title": "Total Hours",
+        "type": "column",
+        "clustered":false,
+        "columnWidth":0.5,
+        "valueField": "Total Hours"
+    }],
+    "plotAreaFillAlphas": 0.1,
+    "categoryField": "Project",
+    "categoryAxis": {
+        "gridPosition": "start",
+		"labelRotation": 30
+    },
+    "export": {
+    	"enabled": true
+     }
+
+});
+</script>
+
+<!-- Chart code for Hours actual vs Budgeted in task -->
+<!-- Chart code -->
+<script>
+var chart = AmCharts.makeChart("chartdiv2", {
+    "theme": "none",
+    "type": "serial",
+    "dataProvider":<?php rep_taskHr_vs_actualHr(); ?> ,
+    "valueAxes": [{
+        //"unit": "%",
+        "position": "left",
+        "title": "Hours",
+    }],
+    "startDuration": 1,
+    "graphs": [{
+        "balloonText": "Actual Hours for Task :- [[category]] : <b>[[value]]</b>",
+        "fillAlphas": 0.9,
+        "lineAlpha": 0.2,
+        "title": "Actual Hours",
+        "type": "column",
+        "valueField": "Actual Hours"
+    }, {
+        "balloonText": "Total Hours  for Task :-[[category]]: <b>[[value]]</b>",
+        "fillAlphas": 0.9,
+        "lineAlpha": 0.2,
+        "title": "Total Hours",
+        "type": "column",
+        "clustered":false,
+        "columnWidth":0.5,
+        "valueField": "Total Hours"
+    }],
+    "plotAreaFillAlphas": 0.1,
+    "categoryField": "Task",
+    "categoryAxis": {
+        "gridPosition": "start",
+		"labelRotation": 50
+    },
+    "export": {
+    	"enabled": true
+     }
+
+});
+</script>
+
+<!-- Styles -->
+<style>
+#chartdiv {
+  width: 100%;
+  height: 300px;
+  font-size	: 11px; 
+  border:1px solid black;
+}
+#chartdiv_Unapproved {
+  width: 100%;
+  height: 300px;
+  font-size	: 11px; 
+  border:1px solid black;
+}	
+#chartdiv1 {
+  width: 100%;
+  height: 300px;
+  border:1px solid black;
+}	
+#chartdiv2 {
+  width: 100%;
+  height: 500px;
+  border:1px solid black;
+}													
+</style>
+<?php 
+// -------  logic to get month name ----------
+$now = new \DateTime('now');
+$month = $now->format('m');
+$year = $now->format('Y');
+$details= date('F Y', strtotime($year.$month.'01'));
+ 
+if($_SESSION['SESS_perm'] == 'manager' || $_SESSION['SESS_perm'] == 'sys_admin'|| $_SESSION['SESS_perm']=='admin' || $_SESSION['SESS_perm']=='user' || $_SESSION['SESS_perm']=='pmo') {	
+	//-----------display table for Employee under the manager-------------//
+	//------------ get the user under the login manager from  timesheet--------------------------
+	$date = friday();
+	$ts = new DateTime(friday());
+	$dint = $ts->format('U');  
+	//SELECT (saturday+sunday+monday +tuesday+wednesday+thursday+friday)as total   FROM `timetable` tt join users u on tt.mgrid = u.empid 
+	//$qry_Getuser = "SELECT Ts.id,U.empname,totalhours,submitter,assignedto FROM timesheet Ts  join users U on Ts.submitter = U.empid where week=1486684800 and assignedto='$_SESSION[SESS_empid]' and  Ts.status=1";	
+	$qry_Getuser = "SELECT Ts.id,U.empname,totalhours,submitter,assignedto, from_unixtime(week,'%D %M %Y') as date, week  FROM timesheet Ts  join users U on Ts.submitter = U.empid where  assignedto='$_SESSION[SESS_empid]' and  Ts.status = 1 order by  U.empname,week desc ";	
+	$rs_Getuser = mysql_query($qry_Getuser);
+	if(mysql_num_rows($rs_Getuser)>0){		
+		?>
+		<input type="hidden" id="txt_id" name="txt_id">
+	<h4>Pending Approvals.</h4>		
+		<table class="table table-hover table-striped" width="auto" border="1" cellpadding="2" cellspacing="2">
+		<tr>
+			<th>ID</th>
+			<th>Date</th>
+			<th>Name</th>
+			<th>Total Hours</th>
+		</tr>
+		<?php
+		
+		while( $rows_getuser = mysql_fetch_array($rs_Getuser) ){
+			echo "<tr>";
+			echo "<td>$rows_getuser[id]</td>";	
+            echo "<td>$rows_getuser[date]</td>";				
+			echo "<td> <a onclick=\"getFile('$rows_getuser[id]','$rows_getuser[submitter]','$rows_getuser[assignedto]',$rows_getuser[week])\"href=\"#\">$rows_getuser[empname]</a></td>";
+			echo "<td>$rows_getuser[totalhours]</td>";			                  
+			echo "</tr>";
+		}
+		echo "</table>";
+	}	
+//--------------------------- logic to desplay rejected sheet -----------------------------
+	$qry_rejectedRec="SELECT U.empname, from_unixtime(week,'%D %M %Y') as date,totalhours, comments FROM timesheet Ts join users U on Ts.submitter = U.empid where Ts.status=3 and submitter='$_SESSION[SESS_empid]' ";
+	$rs_rejectedRec = mysql_query($qry_rejectedRec);
+	if(mysql_num_rows($rs_rejectedRec)>0){	
+	?>
+		
+	<h4>Rejected Time sheet.</h4>		
+		<table class="table table-hover table-striped" width="auto" border="1" cellpadding="2" cellspacing="2">
+		<tr>
+			<th>Name</th>
+			<th>Date</th>			
+			<th>Rejected for</th>
+			
+		</tr>
+		<?php
+		
+			while( $rows_rejectedRec = mysql_fetch_array($rs_rejectedRec) ){
+			echo "<tr>";
+			echo "<td>$rows_rejectedRec[empname]</td>";	
+            echo "<td>$rows_rejectedRec[date]</td>";											
+			echo "<td>$rows_rejectedRec[comments]</td>";				
+			echo "</tr>";
+		}
+		echo "</table>";
+	}
+	//--------------------- End logic ----------------------------
+	
+}
+else if($_SESSION['SESS_perm']=='user'){
+
+	
+}
+?>
+
+<!-- HTML print  Working Hours Details-->
+<div id='div_main'>
+<h4>Working Hours Details for <?php  echo $details;?></h4>
+<div id="chartdiv"></div><br/>
+
+<!-- HTML  print Approved  Hours Details -->
+<h4>Approved  Hours Details for <?php  echo $details;?></h4>
+<div id="chartdiv_Unapproved"></div><br/>
+
+<?php  
+if($_SESSION['SESS_perm']=='pmo' ||  $_SESSION['SESS_perm']=='sys_admin' || $_SESSION['SESS_perm']=='admin') {
+?>
+	<!-- HTML  print Hours actual vs Budgeted in Project-->
+	<h4> Hours actual vs Budgeted in Project </h4>
+	<div id="chartdiv1"></div><br/>
+<?php  
+  } 
+?>
+
+<?php 
+ if($_SESSION['SESS_perm']=='pmo' || $_SESSION['SESS_perm']=='manager' || $_SESSION['SESS_perm']=='sys_admin' || $_SESSION['SESS_perm']=='admin') {
+?>
+	<!-- HTML print Hours actual vs Budgeted in Task-->
+	
+	<h4> Hours actual vs Budgeted in Task </h4>
+	<input type="text" name="txt_search" id="txt_search" value="" placeholder="Search by Project Name" />
+	<button class="btn btn-danger" type="submit" name="btn_search" id="btn_search"><span class=" glyphicon glyphicon-search"></span></button>
+	<div id="chartdiv2">
+<?php  
+ }
+?>
+
+<?php
+
+///------------------------------- @@@@@@@@@@@@ All function which supply data to the reports @@@@@@@@@@@@@@@@@@----------------------
+//----------------- function return data for  report projct hours vs  Actual hours spend-------------------
+function rep_ProjHr_vs_actualHr(){
+	// -----------  get all  project and total hours from project table -----------
+	$qry_get_totalProjHr = "SELECT distinct p_name,estimated_hours  FROM projecttable where  estimated_hours  > 0 ";
+	//SELECT distinct p_name,estimated_hours  FROM projecttable where  estimated_hours  > 0 SELECT distinct p_name,estimated_hours  FROM projecttable
+	$rs_get_totalProjHr = mysql_query($qry_get_totalProjHr);
+	$curr_porj="";	
+	if( mysql_num_rows( $rs_get_totalProjHr ) > 0 ) {
+		while ($rows_proj=mysql_fetch_array( $rs_get_totalProjHr )) {
+			
+			$curr_porj = $rows_proj['p_name'];
+			$ideal_hour = $rows_proj['estimated_hours'];				
+			// ---------for same project get distinct  tsid from time table--------
+			$qry_get_tsid = "SELECT distinct ts.id,  ts.totalhours FROM timesheet ts join timetable tt on tt.tsmid=ts.id where tt.project='$curr_porj'";
+			$rs_get_tsid = mysql_query( $qry_get_tsid);	
+			$actual_hour = 0;
+			if( mysql_num_rows( $rs_get_tsid ) > 0){				
+				while ($rows_hour = mysql_fetch_array( $rs_get_tsid )){
+					
+					$actual_hour= $actual_hour + $rows_hour['totalhours'];
+				}
+								
+			}
+			//------- generate the json --------------
+				$a['Project']=$curr_porj;
+				$a['Actual Hours']=$actual_hour;
+				$a['Total Hours']=$ideal_hour;
+				
+				$b[]=$a;
+			
+		}		
+		//-------return json ------------
+		echo json_encode($b);		
+	}
+}
+
+//----------------- function return data for  report TAsk hours vs  Actual hours spend on task -------------------
+function rep_taskHr_vs_actualHr(){
+	// -----------  get all  project and task and total hours from projecttask table -----------
+	$str_search = $_POST['txt_search'];
+	$str_search = trim($str_search);
+	if(isset($_POST['btn_search']) &&  !empty($str_search)){
+		
+		$qry_get_totalProjHr = "SELECT project,task,esthours FROM projecttask where  esthours > 0 and project like '".$str_search."%'";
+		//echo $qry_get_totalProjHr ;
+	}
+	else {
+		$qry_get_totalProjHr = "SELECT project,task,esthours FROM projecttask where  esthours > 0";
+	}
+	
+	$rs_get_totalProjHr = mysql_query($qry_get_totalProjHr);
+	$curr_porj="";	
+	$curr_task="";	
+	if( mysql_num_rows( $rs_get_totalProjHr ) > 0 ) {
+		while ($rows_proj=mysql_fetch_array( $rs_get_totalProjHr )) {
+			
+			$curr_porj = $rows_proj['project'];
+			$ideal_hour = $rows_proj['esthours'];	
+			$curr_task = $rows_proj['task'];	
+			$actual_hr='';
+            //------------- get distinct tsmid  for projerct and task  from time table -----------
+			$qry_getDisttsmid = "SELECT distinct tsmid FROM timetable WHERE project='$curr_porj' and task='$curr_task'";
+			$rs_getDisttsmid = mysql_query($qry_getDisttsmid);
+			if(mysql_num_rows( $rs_getDisttsmid ) > 0) {
+				
+				$cnt=0;
+				while ($rows_tsmid=mysql_fetch_array( $rs_getDisttsmid )){
+					
+					if( $cnt > 0 ){	
+					
+						$str = $str.' or id='.$rows_tsmid['tsmid'];
+					}
+					else{
+						
+						$str = 'where id='.$rows_tsmid['tsmid'];
+					}
+					
+					//-------------- get total hours for same tsmid from time sheet-----------
+					$cnt++;
+				}
+				$qry__get_actualHr = " SELECT sum(totalhours) as total FROM timesheet ".$str;	
+				$rs_get_actualHr = mysql_query( $qry__get_actualHr );
+				$actual_hr = 0;
+				if( mysql_num_rows( $rs_get_actualHr ) > 0 ){
+					while ($rows_actualHr = mysql_fetch_array( $rs_get_actualHr )){
+						
+						$actual_hr = $rows_actualHr['total'];		
+					}
+				}
+				else {
+					$actual_hr = 0;
+				}
+			}
+			else {
+					$actual_hr = 0;
+				}
+			
+			//------- generate the json --------------
+				$m['Task']= $curr_task.'( '.$curr_porj.' )';
+				//$m['Task']= $curr_task;
+				$m['Actual Hours']=$actual_hr;
+				$m['Total Hours']=$ideal_hour;
+				
+				$n[]=$m;
+			
+		}		
+		//-------return json ------------
+		echo json_encode($n);		
+	}
+}
+
+//----------------- function return data for  report Working Hours Details -------------------
+function getdata(){
+		
+	$tbl=$_GET['page'];
+	$qual_orig=" 1=1";
+	$qual=isset($_POST['qual'])?$_POST['qual']." and ".$qual_orig:$qual_orig;
+	//-------------- fist get current month and year -----------
+	$now = new \DateTime('now');
+	$month = $now->format('m');
+	$year = $now->format('Y');
+	$arr1 = str_split($month);
+	$arr1[0] ;
+	if($arr1[0] =='0'){
+		$month=$arr1[1];
+	}
+	//--------------  calculate working days for month without sunday and  saterday-----------
+	$ideal_working_hours = (9 * countDays($year,$month, array(0, 6)));
+
+	//---------------  logic to get working hours for current employee-------------
+	$fisrtday = strtotime(date('Y-m-01'));// in unix
+	$lastday = strtotime(date('Y-m-t'));// in unix
+	$qry_gettaskid = "SELECT  sum(totalhours) as total  FROM timesheet WHERE submitter=$_SESSION[SESS_empid] and (week between $fisrtday and $lastday ) and status= 2 ";	
+	$rs_gettaskid = mysql_query($qry_gettaskid);
+	$working_hours = 0;
+	if(mysql_num_rows($rs_gettaskid) > 0){
+		
+		while($ids = mysql_fetch_array( $rs_gettaskid )){
+			// ------------  working haours for week-----------			
+			$working_hours = $working_hours +$ids['total'];
+					
+		}
+	}
+	$remain_working_hours=0;
+	if($working_hours<= $ideal_working_hours)
+	{
+		//--------------  logic to get remaing working hours--------
+		$remain_working_hours=$ideal_working_hours-$working_hours;
+	}
+	//echo $remain_working_hours;
+	$d['Title']='Working Hours';
+	$d['value'] = $working_hours;
+	$e[] = $d;
+	
+	$d['Title']='Remaining Hours ';
+	$d['value'] = $remain_working_hours;	
+	$e[] = $d;
+		
+    echo json_encode($e);
+
+}
+
+//----------------- function return data for  report Approved hpurs vs Unapproved Hours  -------------------
+function rep_hrUnapphr_vs_submitted(){
+	
+	//---------------  logic to get all hr   for current employee-------------
+	$fisrtday = strtotime(date('Y-m-01'));// in unix
+	$lastday = strtotime(date('Y-m-t'));// in unix	
+	$qry_gettaskid = "SELECT  sum(totalhours) as total  FROM timesheet WHERE submitter=$_SESSION[SESS_empid] and (week between $fisrtday and $lastday )  ";	
+	$rs_gettaskid = mysql_query($qry_gettaskid);
+	$working_hours = 0;
+	if(mysql_num_rows($rs_gettaskid) > 0){
+		
+		while($ids = mysql_fetch_array( $rs_gettaskid )){
+	
+			$working_hours = $working_hours +$ids['total'];				
+		}
+		
+		//--------------  get Approved  hr  ----------------
+		$qry_appr_hr="SELECT  sum(totalhours) as total_app  FROM timesheet WHERE submitter=$_SESSION[SESS_empid] and (week between $fisrtday and $lastday ) and status = 2 ";
+		$rs_appr_hr=mysql_query($qry_appr_hr);
+		if(mysql_num_rows($rs_appr_hr) > 0){
+		
+		while($app_hrs = mysql_fetch_array( $rs_appr_hr )){
+			
+			$approved_hr=$app_hrs ['total_app'];
+			}
+		}
+		
+		$unapproved_hours=0;
+		if($working_hours > $approved_hr)
+		{			
+			$unapproved_hours=$working_hours-$approved_hr;
+		}
+	}
+	
+	//echo $remain_working_hours;
+	$g['Title']='Approved Hours';
+	$g['value'] = $approved_hr;
+	$h[] = $g;
+	
+	$g['Title']='Unapproved Hours';
+	$g['value'] = $unapproved_hours;	
+	$h[] = $g;
+		
+    echo json_encode($h);
+
+}
+
+ //----------------- function used to calculate working days ---------------
+function countDays($year, $month, $ignore) {
+    $count = 0;
+    $counter = mktime(0, 0, 0, $month, 1, $year);
+    while (date("n", $counter) == $month) {
+        if (in_array(date("w", $counter), $ignore) == false) {
+            $count++;
+        }
+        $counter = strtotime("+1 day", $counter);
+    }
+    return $count;
+}
+ 
+?>
+</div>
+											
